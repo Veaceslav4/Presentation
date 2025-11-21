@@ -2,22 +2,25 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>3D Земля (Fix Loading)</title>
+    <title>3D Earth Final</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #000000; }
         #canvas-container { width: 100vw; height: 100vh; }
-        /* Убрали надпись загрузки, так как планета появится сразу */
     </style>
 </head>
 <body>
-
     <div id="canvas-container"></div>
 
-    <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.128.0/build/three.module.js';
-        import { OrbitControls } from 'https://unpkg.com/three@0.128.0/examples/jsm/controls/OrbitControls.js';
+    <!-- 1. Подключаем Three.js как обычный скрипт (без modules) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 2. Подключаем управление камерой -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-        // --- 1. СЦЕНА ---
+    <script>
+        // Теперь библиотека доступна через глобальную переменную THREE
+        // Никаких import не нужно!
+
+        // --- СЦЕНА ---
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x000000, 0.02);
 
@@ -27,73 +30,54 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
+        // --- УПРАВЛЕНИЕ ---
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.minDistance = 8;
         controls.maxDistance = 30;
 
-        // --- 2. СОЗДАЕМ БАЗОВУЮ ПЛАНЕТУ СРАЗУ ---
+        // --- ПЛАНЕТА ---
         const earthGroup = new THREE.Group();
         scene.add(earthGroup);
 
+        // Создаем синий шар сразу (чтобы не было черного экрана при загрузке)
         const geometry = new THREE.SphereGeometry(5, 64, 64);
-        
-        // Базовый материал (синий), пока текстуры не загрузятся
         const material = new THREE.MeshPhongMaterial({
-            color: 0x1c4e91, // Красивый синий цвет
-            emissive: 0x001133,
-            specular: 0x111111,
-            shininess: 10
+            color: 0x1c4e91,
+            shininess: 15
         });
-
         const earthMesh = new THREE.Mesh(geometry, material);
         earthGroup.add(earthMesh);
 
-        // --- 3. ЗАГРУЗКА ТЕКСТУР В ФОНЕ ---
-        const textureLoader = new THREE.TextureLoader();
-        // Важно: разрешаем кросс-доменную загрузку
-        textureLoader.crossOrigin = 'anonymous';
+        // --- ТЕКСТУРЫ ---
+        const loader = new THREE.TextureLoader();
+        loader.crossOrigin = 'anonymous';
 
-        // Используем ссылки Wikimedia (обычно более стабильны для CORS)
+        // Ссылки на Wikimedia
         const mapUrl = 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Solarsystemscope_texture_2k_earth_daymap.jpg';
         const specUrl = 'https://upload.wikimedia.org/wikipedia/commons/archive/4/4e/20120125152730%21Solarsystemscope_texture_2k_earth_specular_map.jpg';
         const normalUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Solarsystemscope_texture_2k_earth_normal_map.png/1024px-Solarsystemscope_texture_2k_earth_normal_map.png';
 
-        // Функция безопасной загрузки
-        function loadTexture(url, onLoad) {
-            textureLoader.load(
-                url, 
-                (tex) => onLoad(tex), 
-                undefined, 
-                (err) => console.warn('Ошибка загрузки текстуры (не критично):', url)
-            );
-        }
-
-        // Применяем текстуры по мере загрузки
-        loadTexture(mapUrl, (tex) => {
+        // Загружаем и применяем
+        loader.load(mapUrl, function(tex) {
             material.map = tex;
-            material.color.setHex(0x888888); // Делаем базу серой, чтобы карта цвета легла правильно
-            material.emissive.setHex(0x000000); // Убираем собственное свечение
+            material.color.setHex(0xbbbbbb); // Чуть приглушаем цвет
             material.needsUpdate = true;
         });
-
-        loadTexture(specUrl, (tex) => {
+        loader.load(specUrl, function(tex) {
             material.specularMap = tex;
-            material.specular.setHex(0x222222);
+            material.specular.setHex(0x444444);
             material.needsUpdate = true;
         });
-
-        loadTexture(normalUrl, (tex) => {
+        loader.load(normalUrl, function(tex) {
             material.normalMap = tex;
             material.needsUpdate = true;
         });
 
-        // --- 4. АТМОСФЕРА ---
-        const atmoGeo = new THREE.SphereGeometry(5.2, 64, 64);
+        // --- АТМОСФЕРА ---
         const atmoMat = new THREE.ShaderMaterial({
             vertexShader: `
                 varying vec3 vNormal;
@@ -105,65 +89,65 @@
             fragmentShader: `
                 varying vec3 vNormal;
                 void main() {
-                    float intensity = pow(0.6 - dot(vNormal, vec3(0, 0, 1.0)), 4.5);
-                    gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+                    float intensity = pow(0.6 - dot(vNormal, vec3(0, 0, 1.0)), 4.0);
+                    gl_FragColor = vec4(0.2, 0.6, 1.0, 1.0) * intensity;
                 }
             `,
             blending: THREE.AdditiveBlending,
             side: THREE.BackSide,
             transparent: true
         });
-        scene.add(new THREE.Mesh(atmoGeo, atmoMat));
+        const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(5.2, 64, 64), atmoMat);
+        scene.add(atmosphere);
 
-        // --- 5. МАГНИТНЫЕ ВОЛНЫ ---
-        // Точки
-        const particlesGeo = new THREE.BufferGeometry();
-        const count = 1000;
-        const positions = new Float32Array(count * 3);
-        for(let i=0; i<count*3; i++) positions[i] = (Math.random()-0.5) * 22;
-        particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const particlesMat = new THREE.PointsMaterial({ size: 0.08, color: 0x00aaff, transparent: true, blending: THREE.AdditiveBlending });
-        const particles = new THREE.Points(particlesGeo, particlesMat);
+        // --- МАГНИТНЫЕ ВОЛНЫ (Частицы) ---
+        const pGeo = new THREE.BufferGeometry();
+        const pCount = 1200;
+        const pPos = new Float32Array(pCount * 3);
+        for(let i=0; i<pCount*3; i++) pPos[i] = (Math.random() - 0.5) * 25;
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const pMat = new THREE.PointsMaterial({ size: 0.08, color: 0x00aaff, transparent: true, blending: THREE.AdditiveBlending });
+        const particles = new THREE.Points(pGeo, pMat);
         scene.add(particles);
 
-        // Линии (Кольца)
-        const rings = [];
+        // --- КОЛЬЦА ---
         const ringGroup = new THREE.Group();
         scene.add(ringGroup);
+        const torusMat = new THREE.MeshBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.15, wireframe: true });
         
-        const torusMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.2, wireframe: true });
-        for(let i=0; i<5; i++) {
-            const torus = new THREE.Mesh(new THREE.TorusGeometry(6 + i*1.2, 0.05, 8, 100), torusMat);
-            torus.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
-            ringGroup.add(torus);
-            rings.push(torus);
+        const rings = [];
+        for(let i=0; i<4; i++) {
+            const t = new THREE.Mesh(new THREE.TorusGeometry(6.5 + i*1.5, 0.04, 8, 100), torusMat);
+            t.rotation.set(Math.random()*3, Math.random()*3, 0);
+            ringGroup.add(t);
+            rings.push(t);
         }
 
-        // --- 6. СВЕТ ---
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        // --- СВЕТ ---
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
         sunLight.position.set(10, 5, 10);
         scene.add(sunLight);
-        scene.add(new THREE.AmbientLight(0x050505));
-        const blueBackLight = new THREE.PointLight(0x0044ff, 1, 100);
-        blueBackLight.position.set(-10, -5, -15);
-        scene.add(blueBackLight);
+        scene.add(new THREE.AmbientLight(0x111111));
+        const blueLight = new THREE.PointLight(0x0044ff, 1, 100);
+        blueLight.position.set(-10, 0, -10);
+        scene.add(blueLight);
 
-        // --- 7. АНИМАЦИЯ ---
+        // --- АНИМАЦИЯ ---
         function animate() {
             requestAnimationFrame(animate);
             
-            earthMesh.rotation.y += 0.0015;
-            particles.rotation.y -= 0.001;
+            earthMesh.rotation.y += 0.001;
+            particles.rotation.y -= 0.0005;
             
             rings.forEach((r, i) => {
-                r.rotation.x += 0.002 * (i%2 ? 1 : -1);
-                r.rotation.y += 0.001;
+                r.rotation.x += 0.002 * (i % 2 ? 1 : -1);
+                r.rotation.y += 0.002;
             });
 
             controls.update();
             renderer.render(scene, camera);
         }
-
+        
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
