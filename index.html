@@ -10,40 +10,25 @@
 </head>
 <body>
     <div id="canvas-container"></div>
-
-    <!-- 1. Подключаем Three.js как обычный скрипт (без modules) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- 2. Подключаем управление камерой -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        // Теперь библиотека доступна через глобальную переменную THREE
-        // Никаких import не нужно!
-
-        // --- СЦЕНА ---
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x000000, 0.02);
-
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.z = 18;
-
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-        // --- УПРАВЛЕНИЕ ---
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.minDistance = 8;
         controls.maxDistance = 30;
-
-        // --- ПЛАНЕТА ---
         const earthGroup = new THREE.Group();
         scene.add(earthGroup);
-
-        // Создаем синий шар сразу (чтобы не было черного экрана при загрузке)
         const geometry = new THREE.SphereGeometry(5, 64, 64);
         const material = new THREE.MeshPhongMaterial({
             color: 0x1c4e91,
@@ -51,20 +36,14 @@
         });
         const earthMesh = new THREE.Mesh(geometry, material);
         earthGroup.add(earthMesh);
-
-        // --- ТЕКСТУРЫ ---
         const loader = new THREE.TextureLoader();
         loader.crossOrigin = 'anonymous';
-
-        // Ссылки на Wikimedia
         const mapUrl = 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Solarsystemscope_texture_2k_earth_daymap.jpg';
         const specUrl = 'https://upload.wikimedia.org/wikipedia/commons/archive/4/4e/20120125152730%21Solarsystemscope_texture_2k_earth_specular_map.jpg';
         const normalUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Solarsystemscope_texture_2k_earth_normal_map.png/1024px-Solarsystemscope_texture_2k_earth_normal_map.png';
-
-        // Загружаем и применяем
         loader.load(mapUrl, function(tex) {
             material.map = tex;
-            material.color.setHex(0xbbbbbb); // Чуть приглушаем цвет
+            material.color.setHex(0xbbbbbb); 
             material.needsUpdate = true;
         });
         loader.load(specUrl, function(tex) {
@@ -76,8 +55,6 @@
             material.normalMap = tex;
             material.needsUpdate = true;
         });
-
-        // --- АТМОСФЕРА ---
         const atmoMat = new THREE.ShaderMaterial({
             vertexShader: `
                 varying vec3 vNormal;
@@ -109,8 +86,6 @@
         const pMat = new THREE.PointsMaterial({ size: 0.08, color: 0x00aaff, transparent: true, blending: THREE.AdditiveBlending });
         const particles = new THREE.Points(pGeo, pMat);
         scene.add(particles);
-
-        // --- КОЛЬЦА ---
         const ringGroup = new THREE.Group();
         scene.add(ringGroup);
         const torusMat = new THREE.MeshBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.15, wireframe: true });
@@ -122,8 +97,6 @@
             ringGroup.add(t);
             rings.push(t);
         }
-
-        // --- СВЕТ ---
         const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
         sunLight.position.set(10, 5, 10);
         scene.add(sunLight);
@@ -131,8 +104,6 @@
         const blueLight = new THREE.PointLight(0x0044ff, 1, 100);
         blueLight.position.set(-10, 0, -10);
         scene.add(blueLight);
-
-        // --- АНИМАЦИЯ ---
         function animate() {
             requestAnimationFrame(animate);
             
